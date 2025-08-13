@@ -79,6 +79,14 @@ variable "custom_ssh_port" {
 }
 
 variable "instance_type" {
+  type        = map(string)
+  description = "Map of environment to EC2 instance type"
+}
+variable "volume_size" {
+  type        = map(number)
+  description = "Map of environment to EC2 volume size"
+}
+variable "volume_type" {
   type        = string
-  description = "EC2 instance type"
+  description = "EC2 volume type"
 }

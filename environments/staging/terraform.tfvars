@@ -25,4 +25,7 @@ default_ssh_port    = 22
 custom_ssh_port     = 69
 
 # EC2 Configuration
-instance_type = "t3.small" # Medium-sized instance for staging
+instance_type = { staging = "t3.small" } # Medium-sized instance for staging
+volume_size   = { staging = 35 }
+volume_type   = "gp2"
+
