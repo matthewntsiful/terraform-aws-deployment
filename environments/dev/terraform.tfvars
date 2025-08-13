@@ -25,4 +25,6 @@ default_ssh_port    = 22
 custom_ssh_port     = 69
 
 # EC2 Configuration
-instance_type = "t3.micro" # Smaller instance for dev
+instance_type = { dev = "t3.micro" } # Smaller instance for dev
+volume_size   = { dev = 20 }
+volume_type   = "gp2"
