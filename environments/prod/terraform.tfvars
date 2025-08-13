@@ -26,7 +26,9 @@ default_ssh_port    = 22
 custom_ssh_port     = 22000 # Using non-standard SSH port in production
 
 # EC2 Configuration
-instance_type = "t3.medium" # Larger instance for production
+instance_type = {
+  prod = "t3.medium" # Larger instance for production
+}
 
 # # Production-specific settings
 # enable_cloudwatch_logging = true

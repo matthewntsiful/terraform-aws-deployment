@@ -120,7 +120,7 @@ output "instance_security_groups" {
 
 output "instance_type" {
   description = "The type of the instance in production"
-  value       = module.ec2.instance_type["prod"]
+  value       = module.ec2.instance_type
 }
 
 output "subnet_id" {
