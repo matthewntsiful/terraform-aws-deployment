@@ -1,5 +1,8 @@
 module "vpc" {
-  source               = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=main"
+  #source               = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=main"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=v0.1.0"
+
+
   name_prefix          = "BlakkBrotherInc"
   environment          = ["dev", "staging", "prod"]
   region               = "us-east-1"
@@ -14,7 +17,8 @@ module "vpc" {
 }
 
 module "security-group" {
-  source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=main"
+  #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=main"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=v0.1.0"
 
   name_prefix                = "BlakkBrotherInc"
   environment                = ["dev", "staging", "prod"]
@@ -35,7 +39,8 @@ module "security-group" {
 }
 
 module "ec2" {
-  source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=main"
+  #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=main"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=v0.1.0"
 
   name_prefix       = var.name_prefix
   environment       = var.environment
