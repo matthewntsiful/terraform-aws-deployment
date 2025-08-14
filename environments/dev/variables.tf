@@ -1,75 +1,95 @@
 variable "name_prefix" {
-  type = string
+  description = "Prefix for all resource names"
+  type        = string
 }
 
 variable "environment" {
-  type = list(string)
+  description = "List of environments (typically contains 'dev', 'staging', 'prod')"
+  type        = list(string)
 }
 
 variable "region" {
-  type = string
+  description = "AWS region where resources will be created"
+  type        = string
 }
 
 variable "vpc_cidr" {
-  type = string
+  description = "CIDR block for the VPC"
+  type        = string
 }
 
 variable "subnet_cidr" {
-  type = list(string)
+  description = "List of CIDR blocks for subnets (2 public, 2 private)"
+  type        = list(string)
 }
 
 variable "availability_zones" {
-  type = list(string)
+  description = "List of availability zones to use for subnets"
+  type        = list(string)
 }
 
 variable "enable_dns_hostnames" {
-  type = bool
+  description = "Enable DNS hostnames in the VPC"
+  type        = bool
 }
 
 variable "enable_dns_support" {
-  type = bool
+  description = "Enable DNS support in the VPC"
+  type        = bool
 }
 
 variable "enable_nat_gateway" {
-  type = bool
+  description = "Enable NAT Gateway for private subnets"
+  type        = bool
 }
 
 variable "created_by" {
-  type = string
+  description = "Name of the resource creator"
+  type        = string
 }
 
 variable "managed_by" {
-  type = string
+  description = "Entity responsible for managing the resources"
+  type        = string
 }
 
 variable "allowed_cidr_blocks" {
-  type = list(string)
+  description = "List of allowed CIDR blocks for security group rules"
+  type        = list(string)
 }
 
 variable "http_port" {
-  type = number
+  description = "Port for HTTP traffic"
+  type        = number
 }
 
 variable "https_port" {
-  type = number
+  description = "Port for HTTPS traffic"
+  type        = number
 }
 
 variable "default_ssh_port" {
-  type = number
+  description = "Default port for SSH access"
+  type        = number
 }
 
 variable "custom_ssh_port" {
-  type = number
+  description = "Custom port for SSH access"
+  type        = number
 }
 
 variable "instance_type" {
-  type = map(string)
+  description = "Map of instance types for different environments"
+  type        = map(string)
 }
 
 variable "volume_size" {
-  type = map(number)
+  description = "Map of root volume sizes (in GB) for different environments"
+  type        = map(number)
 }
 
 variable "volume_type" {
-  type = string
+  description = "Type of EBS volume (e.g., gp2, gp3, io1)"
+  type        = string
 }
+

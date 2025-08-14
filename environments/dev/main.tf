@@ -1,72 +1,79 @@
 module "vpc" {
   #source               = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=v0.1.0"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=v0.1.15"
 
 
-  name_prefix          = "BlakkBrotherInc"
-  environment          = ["dev", "staging", "prod"]
-  region               = "us-east-1"
-  vpc_cidr             = "10.0.0.0/16"
-  subnet_cidr          = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24", "10.0.4.0/24"]
-  availability_zones   = ["us-east-1a", "us-east-1b"]
-  enable_dns_hostnames = true
-  enable_dns_support   = true
-  enable_nat_gateway   = true
-  created_by           = "Matthew Ntsiful"
-  managed_by           = "Terraform"
+  name_prefix          = var.name_prefix
+  environment          = var.environment
+  region               = var.region
+  vpc_cidr             = var.vpc_cidr
+  subnet_cidr          = var.subnet_cidr
+  availability_zones   = var.availability_zones
+  enable_dns_hostnames = var.enable_dns_hostnames
+  enable_dns_support   = var.enable_dns_support
+  enable_nat_gateway   = var.enable_nat_gateway
+  created_by           = var.created_by
+  managed_by           = var.managed_by
 }
 
 module "security-group" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=v0.1.0"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=v0.1.15"
 
-  name_prefix                = "BlakkBrotherInc"
-  environment                = ["dev", "staging", "prod"]
-  region                     = "us-east-1"
-  vpc_id                     = module.vpc.vpc_id
-  security_group_name_suffix = "web-sg"
-  allowed_cidr_blocks        = ["0.0.0.0/0"] # Restrict this in production
-  created_by                 = "Matthew Ntsiful"
-  managed_by                 = "Terraform"
+  name_prefix = var.name_prefix
+  environment = var.environment
+  region      = var.region
+  vpc_id      = module.vpc.vpc_id
+  alb_sg_id   = module.load-balancer.alb_sg_id
+  # security_group_name_suffix = var.security_group_name_suffix
+  allowed_cidr_blocks = var.allowed_cidr_blocks
+  created_by          = var.created_by
+  managed_by          = var.managed_by
 
-  # Optional: Customize ports (defaults shown)
-  http_port        = 80
-  https_port       = 443
-  default_ssh_port = 22
-  custom_ssh_port  = 69
 
-  depends_on = [module.vpc]
+  depends_on = [module.vpc, module.load-balancer]
 }
 
-module "ec2" {
-  #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=v0.1.0"
+module "load-balancer" {
+  #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/load-balancer?ref=main"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/load-balancer?ref=v0.1.15"
 
   name_prefix       = var.name_prefix
   environment       = var.environment
   region            = var.region
-  subnet_id         = module.vpc.public_subnet_ids[0]
-  security_group_id = module.security-group.security_group_id
-  created_by        = var.created_by
-  managed_by        = var.managed_by
-
-  # Optional: Customize instance type if needed
-  instance_type = {
-    dev     = "t3.micro"
-    staging = "t3.small"
-    prod    = "t3.medium"
-  }
+  vpc_id            = module.vpc.vpc_id
+  public_subnet_ids = module.vpc.public_subnet_ids
+  # security_group_id     = module.security-group.security_group_id
+  # alb_security_group_id = module.load-balancer.alb_security_group_id
+  created_by = var.created_by
+  managed_by = var.managed_by
 
 
-  # Optional: Custom SSH port (default is 69 as per the module)
-  custom_ssh_port = 69
+  depends_on = [module.vpc]
+}
 
-  # Optional: Associate public IP (default is true)
-  associate_public_ip = true
+
+module "ec2" {
+  #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=main"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=v0.1.15"
+
+  name_prefix          = var.name_prefix
+  environment          = var.environment
+  region               = var.region
+  subnet_ids           = [
+    module.vpc.private_subnet_ids[0],
+    module.vpc.private_subnet_ids[1]
+  ]
+  security_group_id    = module.security-group.security_group_id
+  alb_target_group_arn = module.load-balancer.alb_target_group_arn
+  target_group_port    = module.load-balancer.target_group_port
+  instance_type        = var.instance_type
+  created_by           = var.created_by
+  managed_by           = var.managed_by
 
   depends_on = [
     module.vpc,
-    module.security-group
+    module.security-group,
+    module.load-balancer
   ]
 }
-
