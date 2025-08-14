@@ -1,173 +1,116 @@
 # VPC Outputs
+# ------------
+# The ID of the VPC
 output "vpc_id" {
-  description = "The ID of the production VPC"
+  description = "The ID of the VPC"
   value       = module.vpc.vpc_id
 }
 
-output "vpc_arn" {
-  description = "The ARN of the production VPC"
-  value       = module.vpc.vpc_arn
-}
-
-output "vpc_cidr_block" {
-  description = "The CIDR block of the production VPC"
-  value       = module.vpc.vpc_cidr_block
-}
-
+# List of public subnet IDs
 output "public_subnet_ids" {
-  description = "List of public subnet IDs in production"
+  description = "List of public subnet IDs"
   value       = module.vpc.public_subnet_ids
 }
 
+# List of private subnet IDs
 output "private_subnet_ids" {
-  description = "List of private subnet IDs in production"
+  description = "List of private subnet IDs"
   value       = module.vpc.private_subnet_ids
 }
 
-output "internet_gateway_id" {
-  description = "The ID of the Internet Gateway in production"
-  value       = module.vpc.internet_gateway_id
-}
-
-# Security Group Outputs
-output "security_group_id" {
-  description = "The ID of the security group in production"
-  value       = module.security-group.security_group_id
-}
-
-output "security_group_arn" {
-  description = "The ARN of the security group in production"
-  value       = module.security-group.security_group_arn
-}
-
-output "security_group_name" {
-  description = "The name of the security group in production"
-  value       = module.security-group.security_group_name
-}
-
-output "security_group_vpc_id" {
-  description = "The VPC ID the security group belongs to in production"
-  value       = module.security-group.vpc_id
-}
-
-# EC2 Instance Outputs
-output "instance_id" {
-  description = "The ID of the EC2 instance in production"
-  value       = module.ec2.instance_id
-}
-
-output "instance_arn" {
-  description = "The ARN of the EC2 instance in production"
-  value       = module.ec2.instance_arn
-}
-
-# Note: In a production environment, you might want to be more careful with exposing IPs
-output "public_ip" {
-  description = "The public IP address of the EC2 instance in production"
-  value       = module.ec2.public_ip
-  sensitive   = true # Marking as sensitive in production
-}
-
-output "private_ip" {
-  description = "The private IP address of the EC2 instance in production"
-  value       = module.ec2.private_ip
-  sensitive   = true # Marking as sensitive in production
-}
-
-output "public_dns" {
-  description = "The public DNS name of the EC2 instance in production"
-  value       = module.ec2.public_dns
-}
-
-output "private_dns" {
-  description = "The private DNS name of the EC2 instance in production"
-  value       = module.ec2.private_dns
-}
-
-output "instance_state" {
-  description = "The current state of the EC2 instance in production"
-  value       = module.ec2.instance_state
-}
-
-output "ssh_connection_command" {
-  description = "SSH connection command to the EC2 instance in production"
-  value       = module.ec2.ssh_connection_command
-  sensitive   = true
-}
-
-# Key Pair Outputs
-output "key_name" {
-  description = "The name of the SSH key pair in production"
-  value       = module.ec2.key_name
-}
-
-output "private_key_pem" {
-  description = "The private key data in PEM format in production"
-  value       = module.ec2.private_key_pem
-  sensitive   = true
-}
-
-output "private_key_path" {
-  description = "Path to the generated private key file in production"
-  value       = module.ec2.private_key_path
-  sensitive   = true
-}
-
-output "instance_security_groups" {
-  description = "List of security group IDs associated with the instance in production"
-  value       = module.ec2.security_groups
-}
-
-output "instance_type" {
-  description = "The type of the instance in production"
-  value       = module.ec2.instance_type
-}
-
-output "subnet_id" {
-  description = "The ID of the subnet the instance is in, in production"
-  value       = module.ec2.subnet_id
-}
-
-output "availability_zone" {
-  description = "The availability zone of the instance in production"
-  value       = module.ec2.availability_zone
-}
-
-# Region and Availability Zones
-output "region" {
-  description = "AWS region for production"
-  value       = var.region
-}
-
+# List of availability zones in use
 output "availability_zones" {
-  description = "List of availability zones in use in production"
+  description = "List of availability zones in use"
   value       = module.vpc.availability_zones
 }
 
 # NAT Gateway Outputs (if enabled)
+# --------------------------------
+# List of NAT Gateway IDs
 output "nat_gateway_ids" {
-  description = "List of NAT Gateway IDs in production"
+  description = "List of NAT Gateway IDs"
   value       = module.vpc.nat_gateway_ids
 }
 
-output "nat_gateway_public_ips" {
-  description = "List of public IPs for NAT Gateways in production"
-  value       = module.vpc.nat_gateway_public_ips
+# EC2 Instance Outputs
+# ---------------------
+# Map of instance IDs to their AZs
+output "instance_ids" {
+  description = "Map of instance IDs to their AZs"
+  value       = module.ec2.instance_ids
 }
 
-# Production-specific outputs
-# Uncomment and implement these outputs after setting up CloudWatch and SNS resources
-# output "cloudwatch_log_group_arn" {
-#   description = "The ARN of the CloudWatch log group for production"
-#   value       = var.enable_cloudwatch_logging ? aws_cloudwatch_log_group.prod_logs[0].arn : "CloudWatch logging disabled"
-# }
-# 
-# output "alarm_sns_topic_arn" {
-#   description = "The ARN of the SNS topic for production alarms"
-#   value       = var.enable_cloudwatch_alarms ? aws_sns_topic.prod_alarms[0].arn : "CloudWatch alarms disabled"
-# }
+# List of all EC2 instance IDs
+output "instance_id_list" {
+  description = "List of all EC2 instance IDs"
+  value       = module.ec2.instance_id_list
+}
 
-# output "backup_retention_days" {
-#   description = "Number of days to retain backups in production"
-#   value       = var.backup_retention_days
-# }
+# Map of private IPs by AZ
+output "private_ips" {
+  description = "Map of private IPs by AZ"
+  value       = module.ec2.private_ips
+}
+
+# Map of private DNS names by AZ
+output "private_dns_map" {
+  description = "Map of private DNS names by AZ"
+  value       = module.ec2.private_dns_map
+}
+
+# Map of instance states by AZ
+output "instance_states" {
+  description = "Map of instance states by AZ"
+  value       = module.ec2.instance_states
+}
+
+# The name of the SSH key pair
+output "key_name" {
+  description = "The name of the SSH key pair"
+  value       = module.ec2.key_name
+}
+
+# Path to the generated private key file
+output "private_key_path" {
+  description = "Path to the generated private key file"
+  value       = module.ec2.private_key_path
+}
+
+# Map of security group IDs by AZ
+output "security_groups" {
+  description = "Map of security group IDs by AZ"
+  value       = module.ec2.security_groups
+}
+
+# Map of subnet IDs by AZ
+output "subnet_ids" {
+  description = "Map of subnet IDs by AZ"
+  value       = module.ec2.subnet_ids
+}
+
+# Map of SSH connection commands by AZ
+output "ssh_connection_commands" {
+  description = "Map of SSH connection commands by AZ"
+  value       = module.ec2.ssh_connection_commands
+  sensitive   = true
+}
+
+# ALB Outputs
+# ------------
+# The DNS name of the load balancer
+output "alb_dns_name" {
+  description = "The DNS name of the load balancer"
+  value       = module.load-balancer.alb_dns_name
+}
+
+# The ARN of the ALB target group
+output "alb_target_group_arn" {
+  description = "The ARN of the ALB target group"
+  value       = module.load-balancer.alb_target_group_arn
+}
+
+# The ID of the ALB security group
+output "alb_sg_id" {
+  description = "The ID of the ALB security group"
+  value       = module.load-balancer.alb_sg_id
+}

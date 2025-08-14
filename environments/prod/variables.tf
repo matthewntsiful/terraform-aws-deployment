@@ -4,7 +4,7 @@ variable "name_prefix" {
 }
 
 variable "environment" {
-  type        = string
+  type        = list(string)
   description = "Environment name (e.g., prod)"
 }
 
