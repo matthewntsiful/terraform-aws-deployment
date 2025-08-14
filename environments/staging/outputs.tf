@@ -114,3 +114,75 @@ output "alb_sg_id" {
   description = "The ID of the ALB security group"
   value       = module.load-balancer.alb_sg_id
 }
+
+
+# Database Outputs
+# ----------------
+# The connection endpoint for the RDS instance
+output "db_instance_endpoint" {
+  description = "The connection endpoint for the RDS instance"
+  value       = module.database.db_instance_endpoint
+}
+
+# The address of the RDS instance
+output "db_instance_address" {
+  description = "The address of the RDS instance"
+  value       = module.database.db_instance_address
+  sensitive   = true
+}
+
+# The database port
+output "db_instance_port" {
+  description = "The database port"
+  value       = module.database.db_instance_port
+}
+
+# The username for the RDS instance
+output "db_username" {
+  description = "The master username for the database"
+  value       = module.database.db_username
+  sensitive   = true
+}
+
+# The password for the RDS instance
+output "db_password" {
+  description = "The password for the RDS instance"
+  value       = module.database.db_password
+  sensitive   = true
+}
+
+# The name of the RDS instance
+output "db_instance_name" {
+  description = "The database name"
+  value       = module.database.db_instance_name
+}
+
+# The ID of the RDS instance
+output "db_instance_id" {
+  description = "The ID of the RDS instance"
+  value       = module.database.db_instance_id
+}
+
+# The ARN of the RDS instance
+output "db_instance_arn" {
+  description = "The ARN of the RDS instance"
+  value       = module.database.db_instance_arn
+}
+
+# The security group ID of the RDS instance
+output "db_security_group_id" {
+  description = "The security group ID of the RDS instance"
+  value       = module.database.db_security_group_id
+}
+
+# Parameter group
+output "db_parameter_group_name" {
+  description = "The name of the parameter group associated with the RDS instance"
+  value       = module.database.db_parameter_group_name
+}
+
+# Backup and maintenance
+output "db_backup_retention_period" {
+  description = "The backup retention period in days"
+  value       = module.database.db_backup_retention_period
+}
