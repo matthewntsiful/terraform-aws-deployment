@@ -136,3 +136,8 @@ variable "db_instance_parameter_group_name" {
   description = "Parameter group name for the RDS instance"
   type        = string
 }
+
+variable "db_instance_skip_final_snapshot" {
+  description = "Skip final snapshot for the RDS instance"
+  type        = bool
+}
