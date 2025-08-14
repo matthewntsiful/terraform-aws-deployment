@@ -27,4 +27,19 @@ custom_ssh_port     = 69
 # EC2 Configuration
 instance_type = { dev = "t3.micro" } # Smaller instance for dev
 volume_size   = { dev = 20 }
-volume_type   = "gp2"
+volume_type   = "gp3"
+
+#Database Configurations
+# Essential Database Configuration
+
+db_instance_engine              = "mysql"
+db_instance_engine_version      = "8.0"
+db_instance_class               = { dev = "db.t3.micro" } # t3.small for staging, t3.medium for prod
+db_instance_storage_size        = { dev = 20 }            # GB
+db_username                     = "admin"                 # Change in production
+db_password                     = ""                      # Auto-generate if empty
+db_instance_multi_az            = false                   # Set to true for production
+db_instance_allowed_cidr_blocks = ["10.0.0.0/16"]         # Your VPC CIDR
+db_instance_parameter_group_name = "default.mysql8.0"
+
+
