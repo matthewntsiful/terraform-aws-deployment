@@ -20,12 +20,11 @@ module "security-group" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=main"
   source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=v0.1.15"
 
-  name_prefix = var.name_prefix
-  environment = var.environment
-  region      = var.region
-  vpc_id      = module.vpc.vpc_id
-  alb_sg_id   = module.load-balancer.alb_sg_id
-  # security_group_name_suffix = var.security_group_name_suffix
+  name_prefix         = var.name_prefix
+  environment         = var.environment
+  region              = var.region
+  vpc_id              = module.vpc.vpc_id
+  alb_sg_id           = module.load-balancer.alb_sg_id
   allowed_cidr_blocks = var.allowed_cidr_blocks
   created_by          = var.created_by
   managed_by          = var.managed_by
@@ -57,10 +56,10 @@ module "ec2" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=main"
   source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=v0.1.15"
 
-  name_prefix          = var.name_prefix
-  environment          = var.environment
-  region               = var.region
-  subnet_ids           = [
+  name_prefix = var.name_prefix
+  environment = var.environment
+  region      = var.region
+  subnet_ids = [
     module.vpc.private_subnet_ids[0],
     module.vpc.private_subnet_ids[1]
   ]
