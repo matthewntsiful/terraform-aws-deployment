@@ -4,8 +4,8 @@ variable "name_prefix" {
 }
 
 variable "environment" {
-  type        = string
-  description = "Environment name (e.g., staging)"
+  type        = list(string)
+  description = "List of environment names"
 }
 
 variable "region" {

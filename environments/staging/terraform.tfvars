@@ -1,6 +1,6 @@
 # Common variables
 name_prefix = "BlakkBrotherInc"
-environment = "staging"
+environment = ["staging"]
 region      = "us-east-1"
 created_by  = "Matthew Ntsiful"
 managed_by  = "Terraform"
