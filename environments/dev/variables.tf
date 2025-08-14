@@ -93,11 +93,6 @@ variable "volume_type" {
   type        = string
 }
 
-# variable "db_identifier" {
-#   description = "Identifier for the RDS instance"
-#   type        = string
-# }
-
 variable "db_username" {
   description = "Username for the RDS instance"
   type        = string
@@ -122,11 +117,6 @@ variable "db_instance_class" {
   type        = map(string)
 }
 
-# variable "db_allocated_storage" {
-#   description = "Allocated storage for the RDS instance"
-#   type        = map(number)
-# }
-
 variable "db_instance_multi_az" {
   description = "Enable Multi-AZ deployment for the RDS instance"
   type        = bool
@@ -137,16 +127,12 @@ variable "db_instance_allowed_cidr_blocks" {
   type        = list(string)
 }
 
-# variable "db_instance_class" {
-#   description = "Instance class for the RDS instance"
-#   type        = map(string)
-# }
-
 variable "db_instance_storage_size" {
   description = "Storage size for the RDS instance"
   type        = map(number)
 }
 
 variable "db_instance_parameter_group_name" {
-  
+  description = "Parameter group name for the RDS instance"
+  type        = string
 }
