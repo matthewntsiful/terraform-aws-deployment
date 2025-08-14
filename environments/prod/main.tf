@@ -1,6 +1,6 @@
 module "vpc" {
   #source               = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=v0.1.15"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=v0.1.25"
 
   name_prefix          = var.name_prefix
   environment          = var.environment
@@ -17,23 +17,23 @@ module "vpc" {
 
 module "security-group" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=v0.1.15"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=v0.1.25"
 
-  name_prefix = var.name_prefix
-  environment = var.environment
-  region      = var.region
-  vpc_id      = module.vpc.vpc_id
-  alb_sg_id   = module.load-balancer.alb_sg_id
+  name_prefix         = var.name_prefix
+  environment         = var.environment
+  region              = var.region
+  vpc_id              = module.vpc.vpc_id
+  alb_sg_id           = module.load-balancer.alb_sg_id
   allowed_cidr_blocks = var.allowed_cidr_blocks
-  created_by  = var.created_by
-  managed_by  = var.managed_by
+  created_by          = var.created_by
+  managed_by          = var.managed_by
 
   depends_on = [module.vpc, module.load-balancer]
 }
 
 module "load-balancer" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/load-balancer?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/load-balancer?ref=v0.1.15"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/load-balancer?ref=v0.1.25"
 
   name_prefix       = var.name_prefix
   environment       = var.environment
@@ -49,14 +49,14 @@ module "load-balancer" {
 
 module "ec2" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=v0.1.15"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=v0.1.25"
 
-  name_prefix          = var.name_prefix
-  environment          = var.environment
-  region               = var.region
-  subnet_ids           = [
+  name_prefix = var.name_prefix
+  environment = var.environment
+  region      = var.region
+  subnet_ids = [
     module.vpc.private_subnet_ids[0],
-    module.vpc.private_subnet_ids[1]  # Using two AZs as configured in the VPC module
+    module.vpc.private_subnet_ids[1] # Using two AZs as configured in the VPC module
   ]
   security_group_id    = module.security-group.security_group_id
   alb_target_group_arn = module.load-balancer.alb_target_group_arn
@@ -64,11 +64,32 @@ module "ec2" {
   instance_type        = var.instance_type
   created_by           = var.created_by
   managed_by           = var.managed_by
-  
+
 
   depends_on = [
     module.vpc,
     module.security-group,
     module.load-balancer
   ]
+}
+
+module "database" {
+  #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/database?ref=main"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/database?ref=v0.1.25"
+
+  name_prefix                     = var.name_prefix
+  environment                     = var.environment
+  region                          = var.region
+  vpc_id                          = module.vpc.vpc_id
+  db_subnet_ids                   = module.vpc.private_subnet_ids
+  db_instance_class               = var.db_instance_class
+  db_instance_storage_size        = var.db_instance_storage_size
+  db_instance_allowed_cidr_blocks = var.db_instance_allowed_cidr_blocks
+  db_instance_multi_az            = var.db_instance_multi_az
+  db_instance_skip_final_snapshot = var.db_instance_skip_final_snapshot
+  created_by                      = var.created_by
+  managed_by                      = var.managed_by
+
+
+  depends_on = [module.vpc]
 }

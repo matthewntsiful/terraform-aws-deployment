@@ -106,3 +106,53 @@ variable "volume_type" {
 #   type        = number
 #   description = "Number of days to retain backups in production"
 # }
+
+
+variable "db_username" {
+  description = "Username for the RDS instance"
+  type        = string
+}
+
+variable "db_password" {
+  description = "Password for the RDS instance"
+  type        = string
+}
+variable "db_instance_engine" {
+  description = "Engine for the RDS instance"
+  type        = string
+}
+
+variable "db_instance_engine_version" {
+  description = "Engine version for the RDS instance"
+  type        = string
+}
+
+variable "db_instance_class" {
+  description = "Instance class for the RDS instance"
+  type        = map(string)
+}
+
+variable "db_instance_multi_az" {
+  description = "Enable Multi-AZ deployment for the RDS instance"
+  type        = bool
+}
+
+variable "db_instance_allowed_cidr_blocks" {
+  description = "List of allowed CIDR blocks for security group rules"
+  type        = list(string)
+}
+
+variable "db_instance_storage_size" {
+  description = "Storage size for the RDS instance"
+  type        = map(number)
+}
+
+variable "db_instance_parameter_group_name" {
+  description = "Parameter group name for the RDS instance"
+  type        = string
+}
+
+variable "db_instance_skip_final_snapshot" {
+  description = "Skip final snapshot for the RDS instance"
+  type        = bool
+}
