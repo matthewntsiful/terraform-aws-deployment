@@ -1,0 +1,27 @@
+# Enable version updates for GitHub Actions and Terraform
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    commit-message:
+      prefix: "github-actions"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  - package-ecosystem: "terraform"
+    directory: "/"  # Update this path if your Terraform files are in a subdirectory
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"  # One hour after GitHub Actions check
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "terraform"
+    labels:
+      - "dependencies"
+      - "terraform"
