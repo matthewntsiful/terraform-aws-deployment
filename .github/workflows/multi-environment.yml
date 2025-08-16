@@ -37,6 +37,7 @@ jobs:
     outputs:
       environment: ${{ steps.env.outputs.environment }}
       should_deploy: ${{ steps.env.outputs.should_deploy }}
+      aws_role_arn: ${{ steps.env.outputs.aws_role_arn }}
     steps:
       - name: Determine Environment
         id: env
@@ -52,6 +53,19 @@ jobs:
           fi
           
           echo "environment=$ENV" >> $GITHUB_OUTPUT
+          
+          # Set AWS role ARN based on environment
+          case $ENV in
+            "dev")
+              echo "aws_role_arn=${{ secrets.AWS_ROLE_DEV_ARN }}" >> $GITHUB_OUTPUT
+              ;;
+            "staging")
+              echo "aws_role_arn=${{ secrets.AWS_ROLE_STAGING_ARN }}" >> $GITHUB_OUTPUT
+              ;;
+            "prod")
+              echo "aws_role_arn=${{ secrets.AWS_ROLE_PROD_ARN }}" >> $GITHUB_OUTPUT
+              ;;
+          esac
           
           # Determine if we should deploy
           SHOULD_DEPLOY="false"
@@ -76,7 +90,7 @@ jobs:
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}_ARN', upper(needs.setup.outputs.environment))] }}
+          role-to-assume: ${{ needs.setup.outputs.aws_role_arn }}
           aws-region: ${{ env.AWS_REGION }}
           role-session-name: github-actions-${{ github.run_id }}
 
