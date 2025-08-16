@@ -75,7 +75,33 @@ jobs:
           echo "Files in directory:"
           ls -la
           echo ""
-          terraform init -no-color
+          
+          # Check for backend configuration
+          if [ -f "backend.tf" ]; then
+            echo "✅ Found backend.tf"
+            cat backend.tf
+          elif [ -f "main.tf" ] && grep -q "backend" main.tf; then
+            echo "✅ Found backend config in main.tf"
+            grep -A 10 "backend" main.tf
+          else
+            echo "⚠️  No explicit backend configuration found - will use local backend"
+          fi
+          echo ""
+          
+          # Initialize with verbose output
+          terraform init -no-color -upgrade
+          
+          echo ""
+          echo "🔍 Post-init diagnostics:"
+          echo "Terraform workspace: $(terraform workspace show 2>/dev/null || echo 'default')"
+          
+          # Check if .terraform directory was created
+          if [ -d ".terraform" ]; then
+            echo "✅ .terraform directory created"
+            ls -la .terraform/
+          else
+            echo "❌ .terraform directory not found!"
+          fi
 
       - name: Terraform Validate
         run: |
@@ -265,17 +291,40 @@ jobs:
           echo "❌ Terraform plan failed with exit code: ${{ steps.plan.outputs.plan_exit_code }}"
           echo ""
           echo "🔍 Debugging information:"
+          
           echo "Current AWS identity:"
-          aws sts get-caller-identity || echo "Failed to get AWS identity"
+          aws sts get-caller-identity || echo "❌ Failed to get AWS identity"
           echo ""
+          
           echo "Files in working directory:"
           ls -la
           echo ""
-          echo "Terraform state:"
-          terraform state list || echo "No state file or state is empty"
+          
+          echo "Terraform configuration files:"
+          find . -name "*.tf" -exec echo "📄 {}" \; -exec head -5 {} \; -exec echo "" \; || echo "No .tf files found"
           echo ""
-          echo "Recent Terraform logs:"
-          cat terraform.log 2>/dev/null || echo "No terraform.log found"
+          
+          echo "Backend configuration:"
+          if [ -f "backend.tf" ]; then
+            echo "📄 backend.tf:"
+            cat backend.tf
+          elif grep -q "backend" *.tf 2>/dev/null; then
+            echo "Backend config found in:"
+            grep -l "backend" *.tf | head -3
+            grep -A 5 -B 2 "backend" *.tf | head -20
+          else
+            echo "⚠️  No backend configuration found"
+          fi
+          echo ""
+          
+          echo "Terraform logs:"
+          if [ -f "terraform.log" ]; then
+            echo "Last 50 lines of terraform.log:"
+            tail -50 terraform.log
+          else
+            echo "No terraform.log found"
+          fi
+          
           echo ""
           echo "❌ Cannot proceed due to planning errors"
           exit 1
@@ -283,8 +332,37 @@ jobs:
       - name: Verify State
         if: always()
         run: |
-          echo "🔍 Current Terraform state:"
-          terraform state list || echo "No resources in state"
+          echo "🔍 Terraform State Diagnostics:"
+          
+          # Check for state file
+          if [ -f "terraform.tfstate" ]; then
+            echo "✅ Local state file found: terraform.tfstate"
+            echo "State file size: $(ls -lh terraform.tfstate | awk '{print $5}')"
+          else
+            echo "⚠️  No local terraform.tfstate file found"
+          fi
+          
+          # Check for remote state
+          if [ -f ".terraform/terraform.tfstate" ]; then
+            echo "✅ Remote state config found"
+          else
+            echo "⚠️  No remote state configuration"
+          fi
+          
+          # Try to list resources
+          echo ""
+          echo "📋 Attempting to list Terraform resources:"
+          if terraform state list >/dev/null 2>&1; then
+            echo "✅ State accessible, resources:"
+            terraform state list
+          else
+            echo "⚠️  No resources in state or state not accessible"
+            echo "This is normal for first-time deployments"
+          fi
+          
+          # Show current workspace
+          echo ""
+          echo "🏷️  Current workspace: $(terraform workspace show 2>/dev/null || echo 'unknown')"
         continue-on-error: true
 
       - name: Comment Deployment Result
