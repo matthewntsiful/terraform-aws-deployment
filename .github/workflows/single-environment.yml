@@ -166,38 +166,36 @@ jobs:
               });
             }
 
-      - name: Check Plan Status
-        if: steps.plan.outputs.plan_exit_code != '0' && steps.plan.outputs.plan_exit_code != '2'
-        run: |
-          echo "❌ Terraform plan failed with exit code: ${{ steps.plan.outputs.plan_exit_code }}"
-          echo ""
-          echo "🔍 Debugging information:"
-          echo "Current AWS identity:"
-          aws sts get-caller-identity || echo "Failed to get AWS identity"
-          echo ""
-          echo "Files in working directory:"
-          ls -la
-          echo ""
-          echo "Terraform state:"
-          terraform state list || echo "No state file or state is empty"
-          echo ""
-          echo "Recent Terraform logs:"
-          cat .terraform/terraform.log 2>/dev/null || echo "No terraform.log found"
-          exit 1
-
-      - name: Terraform Apply/Destroy
+      - name: Check Plan Status and Apply/Destroy
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
-          if [[ "${{ steps.plan.outputs.action }}" == "destroy" ]]; then
-            echo "🗑️ Destroying infrastructure..."
-            terraform apply -auto-approve tfplan
+          PLAN_EXIT_CODE="${{ steps.plan.outputs.plan_exit_code }}"
+          ACTION="${{ steps.plan.outputs.action }}"
+          
+          echo "📊 Plan Results:"
+          echo "Exit Code: $PLAN_EXIT_CODE"
+          echo "Action: $ACTION"
+          
+          if [[ "$PLAN_EXIT_CODE" == "0" ]]; then
+            echo "✅ No changes detected - nothing to $ACTION"
+            echo "Skipping terraform $ACTION as no changes are needed"
+          elif [[ "$PLAN_EXIT_CODE" == "2" ]]; then
+            echo "📋 Changes detected - proceeding with $ACTION"
+            if [[ "$ACTION" == "destroy" ]]; then
+              echo "🗑️ Destroying infrastructure..."
+              terraform apply -auto-approve tfplan
+            else
+              echo "🚀 Applying infrastructure changes..."
+              terraform apply -auto-approve tfplan
+            fi
           else
-            echo "🚀 Applying infrastructure changes..."
-            terraform apply -auto-approve tfplan
+            echo "❌ Plan failed with exit code: $PLAN_EXIT_CODE"
+            echo "Cannot proceed with $ACTION due to planning errors"
+            exit 1
           fi
 
       - name: Get Terraform Outputs
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.plan.outputs.action != 'destroy'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.plan.outputs.action != 'destroy' && (steps.plan.outputs.plan_exit_code == '0' || steps.plan.outputs.plan_exit_code == '2')
         id: outputs
         run: |
           # Get all outputs and save to file
@@ -214,12 +212,33 @@ jobs:
         continue-on-error: true
 
       - name: Upload Terraform Outputs
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.plan.outputs.action != 'destroy'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.plan.outputs.action != 'destroy' && (steps.plan.outputs.plan_exit_code == '0' || steps.plan.outputs.plan_exit_code == '2')
         uses: actions/upload-artifact@v4
         with:
           name: terraform-outputs
           path: ${{ env.WORKING_DIR }}/outputs.json
           retention-days: 30
+
+      - name: Debug Plan Failure
+        if: steps.plan.outputs.plan_exit_code != '0' && steps.plan.outputs.plan_exit_code != '2'
+        run: |
+          echo "❌ Terraform plan failed with exit code: ${{ steps.plan.outputs.plan_exit_code }}"
+          echo ""
+          echo "🔍 Debugging information:"
+          echo "Current AWS identity:"
+          aws sts get-caller-identity || echo "Failed to get AWS identity"
+          echo ""
+          echo "Files in working directory:"
+          ls -la
+          echo ""
+          echo "Terraform state:"
+          terraform state list || echo "No state file or state is empty"
+          echo ""
+          echo "Recent Terraform logs:"
+          cat terraform.log 2>/dev/null || echo "No terraform.log found"
+          echo ""
+          echo "❌ Cannot proceed due to planning errors"
+          exit 1
 
       - name: Verify State
         if: always()
