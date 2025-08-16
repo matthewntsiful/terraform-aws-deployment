@@ -40,4 +40,3 @@ db_instance_multi_az             = false                   # Set to true for pro
 db_instance_allowed_cidr_blocks  = ["10.0.0.0/16"]         # Your VPC CIDR
 db_instance_parameter_group_name = "default.mysql8.0"
 db_instance_skip_final_snapshot  = false
-

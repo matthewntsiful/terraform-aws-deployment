@@ -1,6 +1,6 @@
 module "vpc" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=v0.1.26"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/vpc?ref=v0.1.27"
 
 
   name_prefix          = var.name_prefix
@@ -18,7 +18,7 @@ module "vpc" {
 
 module "security-group" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=v0.1.26"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/security-group?ref=v0.1.27"
 
   name_prefix         = var.name_prefix
   environment         = var.environment
@@ -35,7 +35,7 @@ module "security-group" {
 
 module "load-balancer" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/load-balancer?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/load-balancer?ref=v0.1.26"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/load-balancer?ref=v0.1.27"
 
   name_prefix       = var.name_prefix
   environment       = var.environment
@@ -54,7 +54,7 @@ module "load-balancer" {
 
 module "ec2" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=v0.1.26"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/ec2?ref=v0.1.27"
 
   name_prefix = var.name_prefix
   environment = var.environment
@@ -79,7 +79,7 @@ module "ec2" {
 
 module "database" {
   #source = "git::https://github.com/matthewntsiful/terraform-aws-modules.git//modules/database?ref=main"
-  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/database?ref=v0.1.26"
+  source = "git@github.com:matthewntsiful/terraform-aws-modules.git//modules/database?ref=v0.1.27"
 
   name_prefix                     = var.name_prefix
   environment                     = var.environment
