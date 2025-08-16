@@ -3,7 +3,9 @@ terraform {
     bucket         = "deployments-staging-state"
     key            = "terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "deployments-staging-locks"
+    #dynamodb_table = "deployments-staging-locks"
+
+    use_lockfile = true
     encrypt        = true
   }
 }
