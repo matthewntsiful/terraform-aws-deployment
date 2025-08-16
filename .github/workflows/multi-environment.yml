@@ -1,317 +1,317 @@
-name: 'Terraform Multi-Environment (OIDC)'
+# name: 'Terraform Multi-Environment (OIDC)'
 
-on:
-  push:
-    branches: [main, dev, staging]
-  pull_request:
-    branches: [main, dev, staging]
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'dev'
-        type: choice
-        options: [dev, staging, prod]
-      action:
-        description: 'Action to perform'
-        required: true
-        default: 'plan'
-        type: choice
-        options: [plan, apply, destroy]
+# on:
+#   push:
+#     branches: [main, dev, staging]
+#   pull_request:
+#     branches: [main, dev, staging]
+#   workflow_dispatch:
+#     inputs:
+#       environment:
+#         description: 'Environment to deploy to'
+#         required: true
+#         default: 'dev'
+#         type: choice
+#         options: [dev, staging, prod]
+#       action:
+#         description: 'Action to perform'
+#         required: true
+#         default: 'plan'
+#         type: choice
+#         options: [plan, apply, destroy]
 
-env:
-  TF_VERSION: 1.6.6
-  AWS_REGION: eu-west-1
+# env:
+#   TF_VERSION: 1.6.6
+#   AWS_REGION: eu-west-1
 
-permissions:
-  id-token: write
-  contents: read
-  pull-requests: write
+# permissions:
+#   id-token: write
+#   contents: read
+#   pull-requests: write
 
-jobs:
-  # Determine environment based on trigger
-  setup:
-    name: 'Setup Environment'
-    runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.env.outputs.environment }}
-      should_deploy: ${{ steps.env.outputs.should_deploy }}
-    steps:
-      - name: Determine Environment
-        id: env
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            ENV="${{ github.event.inputs.environment }}"
-          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            ENV="prod"
-          elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-            ENV="staging"
-          else
-            ENV="dev"
-          fi
+# jobs:
+#   # Determine environment based on trigger
+#   setup:
+#     name: 'Setup Environment'
+#     runs-on: ubuntu-latest
+#     outputs:
+#       environment: ${{ steps.env.outputs.environment }}
+#       should_deploy: ${{ steps.env.outputs.should_deploy }}
+#     steps:
+#       - name: Determine Environment
+#         id: env
+#         run: |
+#           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+#             ENV="${{ github.event.inputs.environment }}"
+#           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+#             ENV="prod"
+#           elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+#             ENV="staging"
+#           else
+#             ENV="dev"
+#           fi
           
-          echo "environment=$ENV" >> $GITHUB_OUTPUT
+#           echo "environment=$ENV" >> $GITHUB_OUTPUT
           
-          # Determine if we should deploy
-          SHOULD_DEPLOY="false"
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.action }}" == "apply" ]]; then
-            SHOULD_DEPLOY="true"
-          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            SHOULD_DEPLOY="true"
-          fi
+#           # Determine if we should deploy
+#           SHOULD_DEPLOY="false"
+#           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.action }}" == "apply" ]]; then
+#             SHOULD_DEPLOY="true"
+#           elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+#             SHOULD_DEPLOY="true"
+#           fi
           
-          echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
+#           echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
 
-  terraform:
-    name: 'Terraform (${{ needs.setup.outputs.environment }})'
-    needs: setup
-    runs-on: ubuntu-latest
-    environment: ${{ needs.setup.outputs.environment }}
+#   terraform:
+#     name: 'Terraform (${{ needs.setup.outputs.environment }})'
+#     needs: setup
+#     runs-on: ubuntu-latest
+#     environment: ${{ needs.setup.outputs.environment }}
     
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout
+#         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}_ARN', upper(needs.setup.outputs.environment))] }}
-          aws-region: ${{ env.AWS_REGION }}
-          role-session-name: github-actions-${{ github.run_id }}
+#       - name: Configure AWS Credentials (OIDC)
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           role-to-assume: ${{ secrets[format('AWS_ROLE_{0}_ARN', upper(needs.setup.outputs.environment))] }}
+#           aws-region: ${{ env.AWS_REGION }}
+#           role-session-name: github-actions-${{ github.run_id }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-          terraform_wrapper: false
+#       - name: Setup Terraform
+#         uses: hashicorp/setup-terraform@v3
+#         with:
+#           terraform_version: ${{ env.TF_VERSION }}
+#           terraform_wrapper: false
 
-      - name: Change to Environment Directory
-        run: cd ${{ needs.setup.outputs.environment }}
+#       - name: Change to Environment Directory
+#         run: cd ${{ needs.setup.outputs.environment }}
 
-      - name: Terraform Init
-        run: |
-          cd ${{ needs.setup.outputs.environment }}
-          terraform init
+#       - name: Terraform Init
+#         run: |
+#           cd ${{ needs.setup.outputs.environment }}
+#           terraform init
 
-      - name: Terraform Format Check
-        run: |
-          cd ${{ needs.setup.outputs.environment }}
-          terraform fmt -check -recursive
+#       - name: Terraform Format Check
+#         run: |
+#           cd ${{ needs.setup.outputs.environment }}
+#           terraform fmt -check -recursive
 
-      - name: Terraform Validate
-        run: |
-          cd ${{ needs.setup.outputs.environment }}
-          terraform validate
+#       - name: Terraform Validate
+#         run: |
+#           cd ${{ needs.setup.outputs.environment }}
+#           terraform validate
 
-      - name: Terraform Plan
-        id: plan
-        run: |
-          cd ${{ needs.setup.outputs.environment }}
-          terraform plan -input=false -out=tfplan
-          terraform show -no-color tfplan > plan.txt
-        continue-on-error: true
+#       - name: Terraform Plan
+#         id: plan
+#         run: |
+#           cd ${{ needs.setup.outputs.environment }}
+#           terraform plan -input=false -out=tfplan
+#           terraform show -no-color tfplan > plan.txt
+#         continue-on-error: true
 
-      - name: Update PR with Plan
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
+#       - name: Update PR with Plan
+#         if: github.event_name == 'pull_request'
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const fs = require('fs');
             
-            try {
-              const plan = fs.readFileSync('${{ needs.setup.outputs.environment }}/plan.txt', 'utf8');
-              const maxLength = 65536;
+#             try {
+#               const plan = fs.readFileSync('${{ needs.setup.outputs.environment }}/plan.txt', 'utf8');
+#               const maxLength = 65536;
               
-              let body = `## 🏗️ Terraform Plan - \`${{ needs.setup.outputs.environment }}\`\n\n`;
+#               let body = `## 🏗️ Terraform Plan - \`${{ needs.setup.outputs.environment }}\`\n\n`;
               
-              if (plan.includes('No changes')) {
-                body += '✅ **No infrastructure changes detected**\n\n';
-              } else if (plan.includes('Error')) {
-                body += '❌ **Plan failed** - please check the logs\n\n';
-              } else {
-                body += '📋 **Changes detected** - review the plan below:\n\n';
-              }
+#               if (plan.includes('No changes')) {
+#                 body += '✅ **No infrastructure changes detected**\n\n';
+#               } else if (plan.includes('Error')) {
+#                 body += '❌ **Plan failed** - please check the logs\n\n';
+#               } else {
+#                 body += '📋 **Changes detected** - review the plan below:\n\n';
+#               }
               
-              body += '<details><summary>Show Plan</summary>\n\n```hcl\n' + plan + '\n```\n\n</details>';
+#               body += '<details><summary>Show Plan</summary>\n\n```hcl\n' + plan + '\n```\n\n</details>';
               
-              if (body.length > maxLength) {
-                body = body.substring(0, maxLength - 100) + '\n\n... ✂️ Plan output truncated';
-              }
+#               if (body.length > maxLength) {
+#                 body = body.substring(0, maxLength - 100) + '\n\n... ✂️ Plan output truncated';
+#               }
               
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: body
-              });
-            } catch (error) {
-              console.error('Error reading plan file:', error);
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: `## ❌ Terraform Plan Failed\n\nUnable to generate plan for \`${{ needs.setup.outputs.environment }}\`. Check the workflow logs for details.`
-              });
-            }
+#               await github.rest.issues.createComment({
+#                 issue_number: context.issue.number,
+#                 owner: context.repo.owner,
+#                 repo: context.repo.repo,
+#                 body: body
+#               });
+#             } catch (error) {
+#               console.error('Error reading plan file:', error);
+#               await github.rest.issues.createComment({
+#                 issue_number: context.issue.number,
+#                 owner: context.repo.owner,
+#                 repo: context.repo.repo,
+#                 body: `## ❌ Terraform Plan Failed\n\nUnable to generate plan for \`${{ needs.setup.outputs.environment }}\`. Check the workflow logs for details.`
+#               });
+#             }
 
-      - name: Check Plan Status
-        if: steps.plan.outcome == 'failure'
-        run: |
-          echo "❌ Terraform plan failed"
-          exit 1
+#       - name: Check Plan Status
+#         if: steps.plan.outcome == 'failure'
+#         run: |
+#           echo "❌ Terraform plan failed"
+#           exit 1
 
-      - name: Terraform Apply
-        if: needs.setup.outputs.should_deploy == 'true' || github.event.inputs.action == 'apply'
-        run: |
-          cd ${{ needs.setup.outputs.environment }}
-          terraform apply -auto-approve tfplan
+#       - name: Terraform Apply
+#         if: needs.setup.outputs.should_deploy == 'true' || github.event.inputs.action == 'apply'
+#         run: |
+#           cd ${{ needs.setup.outputs.environment }}
+#           terraform apply -auto-approve tfplan
 
-      - name: Terraform Destroy
-        if: github.event.inputs.action == 'destroy'
-        run: |
-          cd ${{ needs.setup.outputs.environment }}
-          terraform destroy -auto-approve
+#       - name: Terraform Destroy
+#         if: github.event.inputs.action == 'destroy'
+#         run: |
+#           cd ${{ needs.setup.outputs.environment }}
+#           terraform destroy -auto-approve
 
-      - name: Get Terraform Outputs
-        if: (needs.setup.outputs.should_deploy == 'true' || github.event.inputs.action == 'apply') && github.event.inputs.action != 'destroy'
-        id: outputs
-        run: |
-          cd ${{ needs.setup.outputs.environment }}
-          # Get all outputs and save to file
-          terraform output -json > outputs.json
+#       - name: Get Terraform Outputs
+#         if: (needs.setup.outputs.should_deploy == 'true' || github.event.inputs.action == 'apply') && github.event.inputs.action != 'destroy'
+#         id: outputs
+#         run: |
+#           cd ${{ needs.setup.outputs.environment }}
+#           # Get all outputs and save to file
+#           terraform output -json > outputs.json
           
-          # Extract specific outputs if they exist
-          if terraform output application_url >/dev/null 2>&1; then
-            echo "application_url=$(terraform output -raw application_url)" >> $GITHUB_OUTPUT
-            echo "🚀 Application URL: $(terraform output -raw application_url)"
-          fi
+#           # Extract specific outputs if they exist
+#           if terraform output application_url >/dev/null 2>&1; then
+#             echo "application_url=$(terraform output -raw application_url)" >> $GITHUB_OUTPUT
+#             echo "🚀 Application URL: $(terraform output -raw application_url)"
+#           fi
           
-          if terraform output load_balancer_dns >/dev/null 2>&1; then
-            echo "load_balancer_dns=$(terraform output -raw load_balancer_dns)" >> $GITHUB_OUTPUT
-          fi
+#           if terraform output load_balancer_dns >/dev/null 2>&1; then
+#             echo "load_balancer_dns=$(terraform output -raw load_balancer_dns)" >> $GITHUB_OUTPUT
+#           fi
 
-      - name: Upload Terraform Outputs
-        if: (needs.setup.outputs.should_deploy == 'true' || github.event.inputs.action == 'apply') && github.event.inputs.action != 'destroy'
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-outputs-${{ needs.setup.outputs.environment }}
-          path: ${{ needs.setup.outputs.environment }}/outputs.json
-          retention-days: 30
+#       - name: Upload Terraform Outputs
+#         if: (needs.setup.outputs.should_deploy == 'true' || github.event.inputs.action == 'apply') && github.event.inputs.action != 'destroy'
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: terraform-outputs-${{ needs.setup.outputs.environment }}
+#           path: ${{ needs.setup.outputs.environment }}/outputs.json
+#           retention-days: 30
 
-      - name: Comment Deployment Success
-        if: github.event_name == 'pull_request' && (needs.setup.outputs.should_deploy == 'true' || github.event.inputs.action == 'apply') && github.event.inputs.action != 'destroy'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const outputs = `${{ steps.outputs.outputs.application_url }}`;
-            let body = `## ✅ Deployment Successful - \`${{ needs.setup.outputs.environment }}\`\n\n`;
+#       - name: Comment Deployment Success
+#         if: github.event_name == 'pull_request' && (needs.setup.outputs.should_deploy == 'true' || github.event.inputs.action == 'apply') && github.event.inputs.action != 'destroy'
+#         uses: actions/github-script@v7
+#         with:
+#           script: |
+#             const outputs = `${{ steps.outputs.outputs.application_url }}`;
+#             let body = `## ✅ Deployment Successful - \`${{ needs.setup.outputs.environment }}\`\n\n`;
             
-            if (outputs) {
-              body += `🔗 **Application URL:** ${outputs}\n\n`;
-            }
+#             if (outputs) {
+#               body += `🔗 **Application URL:** ${outputs}\n\n`;
+#             }
             
-            body += `🕒 **Deployed at:** ${new Date().toISOString()}\n`;
-            body += `📝 **Commit:** ${context.sha.substring(0, 7)}\n`;
+#             body += `🕒 **Deployed at:** ${new Date().toISOString()}\n`;
+#             body += `📝 **Commit:** ${context.sha.substring(0, 7)}\n`;
             
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+#             await github.rest.issues.createComment({
+#               issue_number: context.issue.number,
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               body: body
+#             });
 
-  notify:
-    name: 'Slack Notification'
-    needs: [setup, terraform]
-    if: always() && vars.SLACK_NOTIFICATIONS == 'true'
-    runs-on: ubuntu-latest
+#   notify:
+#     name: 'Slack Notification'
+#     needs: [setup, terraform]
+#     if: always() && vars.SLACK_NOTIFICATIONS == 'true'
+#     runs-on: ubuntu-latest
     
-    steps:
-      - name: Determine Status
-        id: status
-        run: |
-          if [[ "${{ needs.terraform.result }}" == "success" ]]; then
-            echo "status=✅ Succeeded" >> $GITHUB_OUTPUT
-            echo "color=good" >> $GITHUB_OUTPUT
-          elif [[ "${{ needs.terraform.result }}" == "failure" ]]; then
-            echo "status=❌ Failed" >> $GITHUB_OUTPUT
-            echo "color=danger" >> $GITHUB_OUTPUT
-          else
-            echo "status=⚠️ Cancelled" >> $GITHUB_OUTPUT
-            echo "color=warning" >> $GITHUB_OUTPUT
-          fi
+#     steps:
+#       - name: Determine Status
+#         id: status
+#         run: |
+#           if [[ "${{ needs.terraform.result }}" == "success" ]]; then
+#             echo "status=✅ Succeeded" >> $GITHUB_OUTPUT
+#             echo "color=good" >> $GITHUB_OUTPUT
+#           elif [[ "${{ needs.terraform.result }}" == "failure" ]]; then
+#             echo "status=❌ Failed" >> $GITHUB_OUTPUT
+#             echo "color=danger" >> $GITHUB_OUTPUT
+#           else
+#             echo "status=⚠️ Cancelled" >> $GITHUB_OUTPUT
+#             echo "color=warning" >> $GITHUB_OUTPUT
+#           fi
 
-      - name: Send Slack Notification
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "attachments": [
-                {
-                  "color": "${{ steps.status.outputs.color }}",
-                  "blocks": [
-                    {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "*Terraform Multi-Environment Deployment* 🌍"
-                      }
-                    },
-                    {
-                      "type": "section",
-                      "fields": [
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Repository:*\n${{ github.repository }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Environment:*\n${{ needs.setup.outputs.environment }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Branch:*\n${{ github.ref_name }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Action:*\n${{ github.event.inputs.action || (needs.setup.outputs.should_deploy == 'true' && 'apply' || 'plan') }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Status:*\n${{ steps.status.outputs.status }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Triggered by:*\n${{ github.actor }}"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "*Commit:* <https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
-                      }
-                    },
-                    {
-                      "type": "actions",
-                      "elements": [
-                        {
-                          "type": "button",
-                          "text": {
-                            "type": "plain_text",
-                            "text": "View Workflow Run",
-                            "emoji": true
-                          },
-                          "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+#       - name: Send Slack Notification
+#         uses: slackapi/slack-github-action@v1.26.0
+#         with:
+#           payload: |
+#             {
+#               "attachments": [
+#                 {
+#                   "color": "${{ steps.status.outputs.color }}",
+#                   "blocks": [
+#                     {
+#                       "type": "section",
+#                       "text": {
+#                         "type": "mrkdwn",
+#                         "text": "*Terraform Multi-Environment Deployment* 🌍"
+#                       }
+#                     },
+#                     {
+#                       "type": "section",
+#                       "fields": [
+#                         {
+#                           "type": "mrkdwn",
+#                           "text": "*Repository:*\n${{ github.repository }}"
+#                         },
+#                         {
+#                           "type": "mrkdwn",
+#                           "text": "*Environment:*\n${{ needs.setup.outputs.environment }}"
+#                         },
+#                         {
+#                           "type": "mrkdwn",
+#                           "text": "*Branch:*\n${{ github.ref_name }}"
+#                         },
+#                         {
+#                           "type": "mrkdwn",
+#                           "text": "*Action:*\n${{ github.event.inputs.action || (needs.setup.outputs.should_deploy == 'true' && 'apply' || 'plan') }}"
+#                         },
+#                         {
+#                           "type": "mrkdwn",
+#                           "text": "*Status:*\n${{ steps.status.outputs.status }}"
+#                         },
+#                         {
+#                           "type": "mrkdwn",
+#                           "text": "*Triggered by:*\n${{ github.actor }}"
+#                         }
+#                       ]
+#                     },
+#                     {
+#                       "type": "section",
+#                       "text": {
+#                         "type": "mrkdwn",
+#                         "text": "*Commit:* <https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
+#                       }
+#                     },
+#                     {
+#                       "type": "actions",
+#                       "elements": [
+#                         {
+#                           "type": "button",
+#                           "text": {
+#                             "type": "plain_text",
+#                             "text": "View Workflow Run",
+#                             "emoji": true
+#                           },
+#                           "url": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+#                         }
+#                       ]
+#                     }
+#                   ]
+#                 }
+#               ]
+#             }
+#         env:
+#           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+#           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
