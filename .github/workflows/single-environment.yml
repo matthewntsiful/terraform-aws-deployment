@@ -82,7 +82,7 @@ jobs:
             const fs = require('fs');
             try {
               const plan = fs.readFileSync('${{ env.WORKING_DIR }}/plan.txt', 'utf8');
-              const action = '${{ github.event.inputs.action || "apply" }}';
+              const action = '${{ github.event.inputs.action || ''apply'' }}';
               const maxLength = 65536;
               
               let body = `## 🏗️ Terraform Plan ${action === 'destroy' ? '(DESTROY)' : ''}\n\n`;
