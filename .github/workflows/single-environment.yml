@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   terraform:
-    name: 'Terraform (${{ github.event.inputs.action || (github.event_name == "push" && "apply" || "plan") }})'
+    name: 'Terraform (${{ github.event.inputs.action || (github.event_name == ''push'' && ''apply'' || ''plan'') }})'
     runs-on: ubuntu-latest
     defaults:
       run:
