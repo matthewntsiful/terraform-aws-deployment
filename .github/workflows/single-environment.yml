@@ -84,6 +84,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
+        continue-on-error: true
         run: |
           echo "🔍 Starting Terraform Plan..."
           echo "Working directory: $(pwd)"
@@ -118,7 +119,8 @@ jobs:
             echo "❌ Plan failed with exit code: $PLAN_EXIT_CODE"
           fi
           
-          # Always succeed this step so we can handle errors properly
+          # Always exit 0 so GitHub doesn't mark this step as failed
+          # We'll handle the real exit code in the next step
           exit 0
 
       - name: Update PR with Plan
@@ -166,6 +168,32 @@ jobs:
               });
             }
 
+      - name: Debug Plan Results
+        run: |
+          echo "🔍 Debug Information:"
+          echo "Plan exit code: '${{ steps.plan.outputs.plan_exit_code }}'"
+          echo "Plan action: '${{ steps.plan.outputs.action }}'"
+          echo "Event name: '${{ github.event_name }}'"
+          echo "Event inputs action: '${{ github.event.inputs.action }}'"
+          echo "GitHub ref: '${{ github.ref }}'"
+          
+          # Check if plan file exists
+          if [ -f "tfplan" ]; then
+            echo "✅ Plan file exists"
+            echo "Plan file size: $(ls -lh tfplan | awk '{print $5}')"
+          else
+            echo "❌ Plan file missing!"
+          fi
+          
+          # Check if plan.txt exists
+          if [ -f "plan.txt" ]; then
+            echo "✅ Plan text file exists"
+            echo "First few lines of plan:"
+            head -10 plan.txt
+          else
+            echo "❌ Plan text file missing!"
+          fi
+
       - name: Check Plan Status and Apply/Destroy
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
@@ -176,11 +204,23 @@ jobs:
           echo "Exit Code: $PLAN_EXIT_CODE"
           echo "Action: $ACTION"
           
+          if [[ -z "$PLAN_EXIT_CODE" ]]; then
+            echo "❌ Plan exit code is empty - something went wrong with plan step"
+            exit 1
+          fi
+          
           if [[ "$PLAN_EXIT_CODE" == "0" ]]; then
             echo "✅ No changes detected - nothing to $ACTION"
             echo "Skipping terraform $ACTION as no changes are needed"
           elif [[ "$PLAN_EXIT_CODE" == "2" ]]; then
             echo "📋 Changes detected - proceeding with $ACTION"
+            
+            # Verify plan file exists before applying
+            if [[ ! -f "tfplan" ]]; then
+              echo "❌ Plan file 'tfplan' not found! Cannot apply."
+              exit 1
+            fi
+            
             if [[ "$ACTION" == "destroy" ]]; then
               echo "🗑️ Destroying infrastructure..."
               terraform apply -auto-approve tfplan
