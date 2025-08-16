@@ -26,7 +26,7 @@ permissions:
 
 jobs:
   terraform:
-    name: 'Terraform (${{ github.event.inputs.action || (github.event_name == ''push'' && ''apply'' || ''plan'') }})'
+    name: 'Terraform'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,10 +44,7 @@ jobs:
 
       - name: Configure Git for SSH
         if: vars.USES_PRIVATE_MODULES == 'true'
-        run: |
-          git config --global url."git@github.com:".insteadOf "https://github.com/"
-          mkdir -p ~/.ssh
-          ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
+        run: git config --global url."git@github.com:".insteadOf "https://github.com/"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -60,105 +57,22 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
-          terraform_wrapper: false
-        env:
-          TF_LOG: DEBUG
-          TF_LOG_PATH: ${{ env.WORKING_DIR }}/terraform.log
 
-      - name: Terraform Format Check
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Init
+      - name: Terraform Init and Validate
         run: |
-          echo "🔧 Initializing Terraform..."
-          echo "Working directory: $(pwd)"
-          echo "Files in directory:"
-          ls -la
-          echo ""
-          
-          # Check for backend configuration
-          if [ -f "backend.tf" ]; then
-            echo "✅ Found backend.tf"
-            cat backend.tf
-          elif [ -f "main.tf" ] && grep -q "backend" main.tf; then
-            echo "✅ Found backend config in main.tf"
-            grep -A 10 "backend" main.tf
-          else
-            echo "⚠️  No explicit backend configuration found - will use local backend"
-          fi
-          echo ""
-          
-          # Initialize with verbose output
-          terraform init -no-color -upgrade
-          
-          echo ""
-          echo "🔍 Post-init diagnostics:"
-          echo "Terraform workspace: $(terraform workspace show 2>/dev/null || echo 'default')"
-          
-          # Check if .terraform directory was created
-          if [ -d ".terraform" ]; then
-            echo "✅ .terraform directory created"
-            ls -la .terraform/
-          else
-            echo "❌ .terraform directory not found!"
-          fi
-
-      - name: Terraform Validate
-        run: |
-          echo "✅ Validating Terraform configuration..."
-          terraform validate -no-color
+          terraform init
+          terraform fmt -check -recursive
+          terraform validate
 
       - name: Terraform Plan
         id: plan
-        continue-on-error: true
         run: |
-          echo "🔍 Starting Terraform Plan..."
-          echo "Working directory: $(pwd)"
-          echo "Terraform version: $(terraform version)"
-          
-          # Determine and set action first
           if [[ "${{ github.event.inputs.action }}" == "destroy" ]]; then
-            ACTION="destroy"
-            echo "📋 Running destroy plan..."
-            terraform plan -destroy -input=false -out=tfplan -detailed-exitcode
+            terraform plan -destroy -out=tfplan
           else
-            ACTION="apply"
-            echo "📋 Running apply plan..."
-            terraform plan -input=false -out=tfplan -detailed-exitcode
+            terraform plan -out=tfplan
           fi
-          
-          # Capture the exit code immediately
-          PLAN_EXIT_CODE=$?
-          
-          echo "📊 Plan completed with exit code: $PLAN_EXIT_CODE"
-          echo "📊 Action determined as: $ACTION"
-          
-          # Set GitHub outputs
-          echo "plan_exit_code=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
-          echo "action=$ACTION" >> $GITHUB_OUTPUT
-          
-          # Verify outputs were set
-          echo "✅ GitHub outputs set:"
-          echo "  - plan_exit_code: $PLAN_EXIT_CODE"
-          echo "  - action: $ACTION"
-          
-          # Generate human-readable plan only if plan file exists
-          if [[ -f "tfplan" ]]; then
-            echo "📄 Generating plan output..."
-            terraform show -no-color tfplan > plan.txt
-          else
-            echo "⚠️ Plan file not created"
-          fi
-          
-          # Show plan summary
-          echo "📊 Plan Summary:"
-          if [[ $PLAN_EXIT_CODE -eq 0 ]]; then
-            echo "✅ No changes detected"
-          elif [[ $PLAN_EXIT_CODE -eq 2 ]]; then
-            echo "📋 Changes detected"
-          else
-            echo "❌ Plan failed with exit code: $PLAN_EXIT_CODE"
-          fi
+          terraform show -no-color tfplan > plan.txt
 
       - name: Update PR with Plan
         if: github.event_name == 'pull_request'
@@ -166,18 +80,15 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            
             try {
               const plan = fs.readFileSync('${{ env.WORKING_DIR }}/plan.txt', 'utf8');
-              const action = '${{ steps.plan.outputs.action }}';
+              const action = '${{ github.event.inputs.action || "apply" }}';
               const maxLength = 65536;
               
               let body = `## 🏗️ Terraform Plan ${action === 'destroy' ? '(DESTROY)' : ''}\n\n`;
               
               if (plan.includes('No changes')) {
                 body += '✅ **No infrastructure changes detected**\n\n';
-              } else if (plan.includes('Error') || '${{ steps.plan.outcome }}' === 'failure') {
-                body += '❌ **Plan failed** - please check the workflow logs\n\n';
               } else {
                 const emoji = action === 'destroy' ? '💥' : '📋';
                 body += `${emoji} **Changes detected** - review the plan below:\n\n`;
@@ -196,237 +107,18 @@ jobs:
                 body: body
               });
             } catch (error) {
-              console.error('Error reading plan file:', error);
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: `## ❌ Terraform Plan Failed\n\nUnable to generate plan. Check the workflow logs for details.`
-              });
+              console.error('Error:', error);
             }
 
-      - name: Debug Plan Results
-        run: |
-          echo "🔍 Debug Information:"
-          echo "Plan exit code from output: '${{ steps.plan.outputs.plan_exit_code }}'"
-          echo "Plan action from output: '${{ steps.plan.outputs.action }}'"
-          echo "Event name: '${{ github.event_name }}'"
-          echo "Event inputs action: '${{ github.event.inputs.action }}'"
-          echo "GitHub ref: '${{ github.ref }}'"
-          echo "Step plan outcome: '${{ steps.plan.outcome }}'"
-          echo "Step plan conclusion: '${{ steps.plan.conclusion }}'"
-          
-          # Check if plan file exists
-          if [ -f "tfplan" ]; then
-            echo "✅ Plan file exists"
-            echo "Plan file size: $(ls -lh tfplan | awk '{print $5}')"
-          else
-            echo "❌ Plan file missing!"
-          fi
-          
-          # Check if plan.txt exists
-          if [ -f "plan.txt" ]; then
-            echo "✅ Plan text file exists"
-            echo "Plan text file size: $(ls -lh plan.txt | awk '{print $5}')"
-            echo "First few lines of plan:"
-            head -10 plan.txt
-          else
-            echo "❌ Plan text file missing!"
-          fi
-          
-          # Show all GitHub outputs for this step
-          echo ""
-          echo "🔍 Checking step outputs directly:"
-          if [ -f "$GITHUB_OUTPUT" ]; then
-            echo "GitHub outputs file contents:"
-            cat $GITHUB_OUTPUT
-          else
-            echo "No GitHub outputs file found"
-          fi
-
-      - name: Check Plan Status and Apply/Destroy
+      - name: Terraform Apply or Destroy
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.event.inputs.action != 'destroy'
         run: |
-          PLAN_EXIT_CODE="${{ steps.plan.outputs.plan_exit_code }}"
-          ACTION="${{ steps.plan.outputs.action }}"
-          
-          echo "📊 Plan Results:"
-          echo "Exit Code: $PLAN_EXIT_CODE"
-          echo "Action: $ACTION"
-          
-          if [[ -z "$PLAN_EXIT_CODE" ]]; then
-            echo "❌ Plan exit code is empty - something went wrong with plan step"
-            exit 1
-          fi
-          
-          if [[ "$PLAN_EXIT_CODE" == "0" ]]; then
-            echo "✅ No changes detected - nothing to $ACTION"
-            echo "Skipping terraform $ACTION as no changes are needed"
-          elif [[ "$PLAN_EXIT_CODE" == "2" ]]; then
-            echo "📋 Changes detected - proceeding with $ACTION"
-            
-            # Verify plan file exists before applying
-            if [[ ! -f "tfplan" ]]; then
-              echo "❌ Plan file 'tfplan' not found! Cannot apply."
-              exit 1
-            fi
-            
-            if [[ "$ACTION" == "destroy" ]]; then
-              echo "🗑️ Destroying infrastructure..."
-              terraform apply -auto-approve tfplan
-            else
-              echo "🚀 Applying infrastructure changes..."
-              terraform apply -auto-approve tfplan
-            fi
-          else
-            echo "❌ Plan failed with exit code: $PLAN_EXIT_CODE"
-            echo "Cannot proceed with $ACTION due to planning errors"
-            exit 1
-          fi
-
-      - name: Get Terraform Outputs
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.plan.outputs.action != 'destroy' && (steps.plan.outputs.plan_exit_code == '0' || steps.plan.outputs.plan_exit_code == '2')
-        id: outputs
-        run: |
-          # Get all outputs and save to file
-          terraform output -json > outputs.json
-          
-          # Extract common outputs if they exist
-          for output in application_url load_balancer_dns database_endpoint; do
-            if terraform output $output >/dev/null 2>&1; then
-              value=$(terraform output -raw $output)
-              echo "${output}=${value}" >> $GITHUB_OUTPUT
-              echo "📋 ${output}: ${value}"
-            fi
-          done
-        continue-on-error: true
-
-      - name: Upload Terraform Outputs
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && steps.plan.outputs.action != 'destroy' && (steps.plan.outputs.plan_exit_code == '0' || steps.plan.outputs.plan_exit_code == '2')
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-outputs
-          path: ${{ env.WORKING_DIR }}/outputs.json
-          retention-days: 30
-
-      - name: Debug Plan Failure
-        if: steps.plan.outputs.plan_exit_code != '0' && steps.plan.outputs.plan_exit_code != '2'
-        run: |
-          echo "❌ Terraform plan failed with exit code: ${{ steps.plan.outputs.plan_exit_code }}"
-          echo ""
-          echo "🔍 Debugging information:"
-          
-          echo "Current AWS identity:"
-          aws sts get-caller-identity || echo "❌ Failed to get AWS identity"
-          echo ""
-          
-          echo "Files in working directory:"
-          ls -la
-          echo ""
-          
-          echo "Terraform configuration files:"
-          find . -name "*.tf" -exec echo "📄 {}" \; -exec head -5 {} \; -exec echo "" \; || echo "No .tf files found"
-          echo ""
-          
-          echo "Backend configuration:"
-          if [ -f "backend.tf" ]; then
-            echo "📄 backend.tf:"
-            cat backend.tf
-          elif grep -q "backend" *.tf 2>/dev/null; then
-            echo "Backend config found in:"
-            grep -l "backend" *.tf | head -3
-            grep -A 5 -B 2 "backend" *.tf | head -20
-          else
-            echo "⚠️  No backend configuration found"
-          fi
-          echo ""
-          
-          echo "Terraform logs:"
-          if [ -f "terraform.log" ]; then
-            echo "Last 50 lines of terraform.log:"
-            tail -50 terraform.log
-          else
-            echo "No terraform.log found"
-          fi
-          
-          echo ""
-          echo "❌ Cannot proceed due to planning errors"
-          exit 1
-
-      - name: Verify State
-        if: always()
-        run: |
-          echo "🔍 Terraform State Diagnostics:"
-          
-          # Check for state file
-          if [ -f "terraform.tfstate" ]; then
-            echo "✅ Local state file found: terraform.tfstate"
-            echo "State file size: $(ls -lh terraform.tfstate | awk '{print $5}')"
-          else
-            echo "⚠️  No local terraform.tfstate file found"
-          fi
-          
-          # Check for remote state
-          if [ -f ".terraform/terraform.tfstate" ]; then
-            echo "✅ Remote state config found"
-          else
-            echo "⚠️  No remote state configuration"
-          fi
-          
-          # Try to list resources
-          echo ""
-          echo "📋 Attempting to list Terraform resources:"
-          if terraform state list >/dev/null 2>&1; then
-            echo "✅ State accessible, resources:"
-            terraform state list
-          else
-            echo "⚠️  No resources in state or state not accessible"
-            echo "This is normal for first-time deployments"
-          fi
-          
-          # Show current workspace
-          echo ""
-          echo "🏷️  Current workspace: $(terraform workspace show 2>/dev/null || echo 'unknown')"
-        continue-on-error: true
-
-      - name: Comment Deployment Result
-        if: github.event_name == 'pull_request' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const action = '${{ steps.plan.outputs.action }}';
-            const success = '${{ job.status }}' === 'success';
-            
-            let body = '';
-            if (action === 'destroy') {
-              body = success 
-                ? `## 💥 Infrastructure Destroyed Successfully\n\n🕒 **Destroyed at:** ${new Date().toISOString()}\n📝 **Commit:** ${context.sha.substring(0, 7)}`
-                : `## ❌ Infrastructure Destruction Failed\n\nCheck the workflow logs for details.`;
-            } else {
-              if (success) {
-                body = `## ✅ Deployment Successful\n\n`;
-                const outputs = [
-                  '${{ steps.outputs.outputs.application_url }}',
-                  '${{ steps.outputs.outputs.load_balancer_dns }}',
-                  '${{ steps.outputs.outputs.database_endpoint }}'
-                ].filter(Boolean);
-                
-                if (outputs.length > 0) {
-                  body += `### 🔗 Outputs:\n${outputs.map(url => `- ${url}`).join('\n')}\n\n`;
-                }
-                
-                body += `🕒 **Deployed at:** ${new Date().toISOString()}\n📝 **Commit:** ${context.sha.substring(0, 7)}`;
-              } else {
-                body = `## ❌ Deployment Failed\n\nCheck the workflow logs for details.`;
-              }
-            }
-            
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+          terraform output -json > outputs.json || echo "No outputs available"
+          terraform output || echo "No outputs to display"
 
   notify:
     name: 'Slack Notification'
@@ -435,20 +127,6 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Determine Status
-        id: status
-        run: |
-          if [[ "${{ needs.terraform.result }}" == "success" ]]; then
-            echo "status=✅ Succeeded" >> $GITHUB_OUTPUT
-            echo "color=good" >> $GITHUB_OUTPUT
-          elif [[ "${{ needs.terraform.result }}" == "failure" ]]; then
-            echo "status=❌ Failed" >> $GITHUB_OUTPUT
-            echo "color=danger" >> $GITHUB_OUTPUT
-          else
-            echo "status=⚠️ Cancelled" >> $GITHUB_OUTPUT
-            echo "color=warning" >> $GITHUB_OUTPUT
-          fi
-
       - name: Send Slack Notification
         uses: slackapi/slack-github-action@v1.26.0
         with:
@@ -456,7 +134,7 @@ jobs:
             {
               "attachments": [
                 {
-                  "color": "${{ steps.status.outputs.color }}",
+                  "color": "${{ needs.terraform.result == 'success' && 'good' || 'danger' }}",
                   "blocks": [
                     {
                       "type": "section",
@@ -478,19 +156,11 @@ jobs:
                         },
                         {
                           "type": "mrkdwn",
-                          "text": "*Action:*\n${{ github.event.inputs.action || (github.event_name == 'push' && 'apply' || 'plan') }}"
+                          "text": "*Action:*\n${{ github.event.inputs.action || 'apply' }}"
                         },
                         {
                           "type": "mrkdwn",
-                          "text": "*Status:*\n${{ steps.status.outputs.status }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Commit:*\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Triggered by:*\n${{ github.actor }}"
+                          "text": "*Status:*\n${{ needs.terraform.result == 'success' && '✅ Succeeded' || '❌ Failed' }}"
                         }
                       ]
                     },
