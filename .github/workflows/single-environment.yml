@@ -15,7 +15,7 @@ on:
         options: [apply, destroy]
 
 env:
-  TF_VERSION: 1.6.6
+  TF_VERSION: 1.12.2
   AWS_REGION: us-east-2
   WORKING_DIR: 'infra'
 
@@ -116,24 +116,39 @@ jobs:
           echo "Working directory: $(pwd)"
           echo "Terraform version: $(terraform version)"
           
-          # Determine plan action
+          # Determine and set action first
           if [[ "${{ github.event.inputs.action }}" == "destroy" ]]; then
+            ACTION="destroy"
             echo "📋 Running destroy plan..."
             terraform plan -destroy -input=false -out=tfplan -detailed-exitcode
-            echo "action=destroy" >> $GITHUB_OUTPUT
           else
+            ACTION="apply"
             echo "📋 Running apply plan..."
             terraform plan -input=false -out=tfplan -detailed-exitcode
-            echo "action=apply" >> $GITHUB_OUTPUT
           fi
           
-          # Capture the exit code
+          # Capture the exit code immediately
           PLAN_EXIT_CODE=$?
-          echo "plan_exit_code=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
           
-          # Generate human-readable plan
-          echo "📄 Generating plan output..."
-          terraform show -no-color tfplan > plan.txt
+          echo "📊 Plan completed with exit code: $PLAN_EXIT_CODE"
+          echo "📊 Action determined as: $ACTION"
+          
+          # Set GitHub outputs
+          echo "plan_exit_code=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "action=$ACTION" >> $GITHUB_OUTPUT
+          
+          # Verify outputs were set
+          echo "✅ GitHub outputs set:"
+          echo "  - plan_exit_code: $PLAN_EXIT_CODE"
+          echo "  - action: $ACTION"
+          
+          # Generate human-readable plan only if plan file exists
+          if [[ -f "tfplan" ]]; then
+            echo "📄 Generating plan output..."
+            terraform show -no-color tfplan > plan.txt
+          else
+            echo "⚠️ Plan file not created"
+          fi
           
           # Show plan summary
           echo "📊 Plan Summary:"
@@ -144,10 +159,6 @@ jobs:
           else
             echo "❌ Plan failed with exit code: $PLAN_EXIT_CODE"
           fi
-          
-          # Always exit 0 so GitHub doesn't mark this step as failed
-          # We'll handle the real exit code in the next step
-          exit 0
 
       - name: Update PR with Plan
         if: github.event_name == 'pull_request'
@@ -197,11 +208,13 @@ jobs:
       - name: Debug Plan Results
         run: |
           echo "🔍 Debug Information:"
-          echo "Plan exit code: '${{ steps.plan.outputs.plan_exit_code }}'"
-          echo "Plan action: '${{ steps.plan.outputs.action }}'"
+          echo "Plan exit code from output: '${{ steps.plan.outputs.plan_exit_code }}'"
+          echo "Plan action from output: '${{ steps.plan.outputs.action }}'"
           echo "Event name: '${{ github.event_name }}'"
           echo "Event inputs action: '${{ github.event.inputs.action }}'"
           echo "GitHub ref: '${{ github.ref }}'"
+          echo "Step plan outcome: '${{ steps.plan.outcome }}'"
+          echo "Step plan conclusion: '${{ steps.plan.conclusion }}'"
           
           # Check if plan file exists
           if [ -f "tfplan" ]; then
@@ -214,10 +227,21 @@ jobs:
           # Check if plan.txt exists
           if [ -f "plan.txt" ]; then
             echo "✅ Plan text file exists"
+            echo "Plan text file size: $(ls -lh plan.txt | awk '{print $5}')"
             echo "First few lines of plan:"
             head -10 plan.txt
           else
             echo "❌ Plan text file missing!"
+          fi
+          
+          # Show all GitHub outputs for this step
+          echo ""
+          echo "🔍 Checking step outputs directly:"
+          if [ -f "$GITHUB_OUTPUT" ]; then
+            echo "GitHub outputs file contents:"
+            cat $GITHUB_OUTPUT
+          else
+            echo "No GitHub outputs file found"
           fi
 
       - name: Check Plan Status and Apply/Destroy
