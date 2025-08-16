@@ -61,31 +61,65 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
+        env:
+          TF_LOG: DEBUG
+          TF_LOG_PATH: ${{ env.WORKING_DIR }}/terraform.log
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
-        run: terraform init
+        run: |
+          echo "🔧 Initializing Terraform..."
+          echo "Working directory: $(pwd)"
+          echo "Files in directory:"
+          ls -la
+          echo ""
+          terraform init -no-color
 
       - name: Terraform Validate
-        run: terraform validate
+        run: |
+          echo "✅ Validating Terraform configuration..."
+          terraform validate -no-color
 
       - name: Terraform Plan
         id: plan
         run: |
+          echo "🔍 Starting Terraform Plan..."
+          echo "Working directory: $(pwd)"
+          echo "Terraform version: $(terraform version)"
+          
           # Determine plan action
           if [[ "${{ github.event.inputs.action }}" == "destroy" ]]; then
-            terraform plan -destroy -input=false -out=tfplan
+            echo "📋 Running destroy plan..."
+            terraform plan -destroy -input=false -out=tfplan -detailed-exitcode
             echo "action=destroy" >> $GITHUB_OUTPUT
           else
-            terraform plan -input=false -out=tfplan
+            echo "📋 Running apply plan..."
+            terraform plan -input=false -out=tfplan -detailed-exitcode
             echo "action=apply" >> $GITHUB_OUTPUT
           fi
           
+          # Capture the exit code
+          PLAN_EXIT_CODE=$?
+          echo "plan_exit_code=$PLAN_EXIT_CODE" >> $GITHUB_OUTPUT
+          
           # Generate human-readable plan
+          echo "📄 Generating plan output..."
           terraform show -no-color tfplan > plan.txt
-        continue-on-error: true
+          
+          # Show plan summary
+          echo "📊 Plan Summary:"
+          if [[ $PLAN_EXIT_CODE -eq 0 ]]; then
+            echo "✅ No changes detected"
+          elif [[ $PLAN_EXIT_CODE -eq 2 ]]; then
+            echo "📋 Changes detected"
+          else
+            echo "❌ Plan failed with exit code: $PLAN_EXIT_CODE"
+          fi
+          
+          # Always succeed this step so we can handle errors properly
+          exit 0
 
       - name: Update PR with Plan
         if: github.event_name == 'pull_request'
@@ -133,9 +167,22 @@ jobs:
             }
 
       - name: Check Plan Status
-        if: steps.plan.outcome == 'failure'
+        if: steps.plan.outputs.plan_exit_code != '0' && steps.plan.outputs.plan_exit_code != '2'
         run: |
-          echo "❌ Terraform plan failed"
+          echo "❌ Terraform plan failed with exit code: ${{ steps.plan.outputs.plan_exit_code }}"
+          echo ""
+          echo "🔍 Debugging information:"
+          echo "Current AWS identity:"
+          aws sts get-caller-identity || echo "Failed to get AWS identity"
+          echo ""
+          echo "Files in working directory:"
+          ls -la
+          echo ""
+          echo "Terraform state:"
+          terraform state list || echo "No state file or state is empty"
+          echo ""
+          echo "Recent Terraform logs:"
+          cat .terraform/terraform.log 2>/dev/null || echo "No terraform.log found"
           exit 1
 
       - name: Terraform Apply/Destroy
